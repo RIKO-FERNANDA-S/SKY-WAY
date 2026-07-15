@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h1>VTOL WebSocket Test</h1>
+    <div id="status">Status: Connecting...</div>
+    <div id="messages"></div>
+
+    <script>
+        const ws = new WebSocket('ws://localhost:8000/api/v1/ws');
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+
+        ws.onopen = () => {
+            statusDiv.innerHTML = 'Status: ✅ Connected';
+            statusDiv.style.color = 'green';
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            const msg = document.createElement('div');
+            msg.textContent = JSON.stringify(data, null, 2);
+            messagesDiv.appendChild(msg);
+        };
+
+        ws.onerror = (error) => {
+            statusDiv.innerHTML = 'Status: ❌ Error';
+            statusDiv.style.color = 'red';
+            console.error('WebSocket error:', error);
+        };
+
+        ws.onclose = () => {
+            statusDiv.innerHTML = 'Status:  Disconnected';
+            statusDiv.style.color = 'orange';
+        };
+    </script>
+</body>
+</html>
