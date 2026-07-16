@@ -1,5 +1,35 @@
-__pycache__/
-.env
+# Virtual Environment
 .venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Environment Variables
+.env
+.env.local
+
+# IDE
 .vscode/
-logs/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/*.log
+
+# Database (optional - comment out if you want to track sample data)
+data/*.db
+data/*.sqlite

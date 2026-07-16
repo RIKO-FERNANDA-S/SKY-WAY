@@ -1,39 +1,45 @@
 # app/api/routes/mission.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.response import APIResponse
-from app.schemas.mission import MissionCreate, MissionResponse
+from app.schemas.mission import MissionCreate
 from app.services.mission_service import mission_service
+from app.db.config import get_db
 from typing import List
 
 router = APIRouter(prefix="/mission", tags=["Mission"])
 
 @router.post("/", response_model=APIResponse, status_code=201)
-async def create_mission(mission_data: MissionCreate):
+async def create_mission(
+    mission_data: MissionCreate,
+    db: AsyncSession = Depends(get_db)
+):
     """Create new mission"""
     try:
-        mission = mission_service.create_mission(mission_data)
+        mission = await mission_service.create_mission(db, mission_data)
         return APIResponse(
             success=True,
             message="Mission created successfully",
-            data=mission.dict()
+            data=mission
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/", response_model=APIResponse)
-async def get_all_missions():
+async def get_all_missions(db: AsyncSession = Depends(get_db)):
     """Get all missions"""
-    missions = mission_service.get_all_missions()
+    missions = await mission_service.get_all_missions(db)
     return APIResponse(
         success=True,
         message="Missions retrieved successfully",
-        data=[m.dict() for m in missions]
+        data=missions
     )
 
 @router.get("/{mission_id}", response_model=APIResponse)
-async def get_mission(mission_id: str):
+async def get_mission(mission_id: str, db: AsyncSession = Depends(get_db)):
     """Get specific mission by ID"""
-    mission = mission_service.get_mission(mission_id)
+    mission = await mission_service.get_mission(db, mission_id)
+    
     if not mission:
         return APIResponse(
             success=False,
@@ -44,13 +50,14 @@ async def get_mission(mission_id: str):
     return APIResponse(
         success=True,
         message="Mission retrieved successfully",
-        data=mission.dict()
+        data=mission
     )
 
 @router.delete("/{mission_id}", response_model=APIResponse)
-async def delete_mission(mission_id: str):
+async def delete_mission(mission_id: str, db: AsyncSession = Depends(get_db)):
     """Delete mission"""
-    success = mission_service.delete_mission(mission_id)
+    success = await mission_service.delete_mission(db, mission_id)
+    
     if not success:
         return APIResponse(
             success=False,
@@ -65,9 +72,10 @@ async def delete_mission(mission_id: str):
     )
 
 @router.post("/{mission_id}/start", response_model=APIResponse)
-async def start_mission(mission_id: str):
+async def start_mission(mission_id: str, db: AsyncSession = Depends(get_db)):
     """Start mission execution"""
-    success = await mission_service.start_mission(mission_id)
+    success = await mission_service.start_mission(db, mission_id)
+    
     if not success:
         return APIResponse(
             success=False,
@@ -82,9 +90,10 @@ async def start_mission(mission_id: str):
     )
 
 @router.post("/{mission_id}/abort", response_model=APIResponse)
-async def abort_mission(mission_id: str):
+async def abort_mission(mission_id: str, db: AsyncSession = Depends(get_db)):
     """Abort running mission"""
-    success = await mission_service.abort_mission(mission_id)
+    success = await mission_service.abort_mission(db, mission_id)
+    
     if not success:
         return APIResponse(
             success=False,

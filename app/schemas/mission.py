@@ -14,7 +14,7 @@ class Waypoint(BaseModel):
     id: int
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
-    atlitude: float = Field(..., ge=0)
+    altitude: float = Field(..., ge=0)
     speed: Optional[float] = Field(default=10.0, ge=0)
     hold_time: Optional[int] = Field(default=0, ge=0)
 
@@ -40,7 +40,7 @@ class Config:
                     "id": 1,
                     "latitude": 34.0522,
                     "longitude": -118.2437,
-                    "atlitude": 100.0,
+                    "altitude": 100.0,
                     "speed": 10.0,
                     "hold_time": 5
                 }

@@ -1,85 +1,137 @@
 # app/services/mission_service.py
 from typing import Dict, Optional, List
-from app.schemas.mission import MissionCreate, MissionResponse, MissionStatus, Waypoint
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.schemas.mission import MissionCreate, MissionStatus, Waypoint
+from app.db.models import MissionModel, WaypointModel
+from app.db.repositories import MissionRepository
 from app.services.websocket_service import websocket_service
 import asyncio
 import time
-import uuid
 import logging
 
 logger = logging.getLogger(__name__)
 
 class MissionService:
     def __init__(self):
-        self.missions: Dict[str, MissionResponse] = {}
-        self.current_mission_id: Optional[str] = None
         self.is_executing = False
+        self.current_mission_id: Optional[str] = None
 
-    def create_mission(self, mission_data: MissionCreate) -> MissionResponse:
-        mission_id = str(uuid.uuid4())[:8]
-        timestamp = time.time()
+    def _convert_to_schema(self, mission: MissionModel) -> dict:
+        """Convert database model to schema dict"""
+        return {
+            "id": mission.id,
+            "name": mission.name,
+            "description": mission.description,
+            "waypoints": [
+                {
+                    "id": wp.waypoint_id,
+                    "latitude": wp.latitude,
+                    "longitude": wp.longitude,
+                    "altitude": wp.altitude,
+                    "speed": wp.speed,
+                    "hold_time": wp.hold_time
+                }
+                for wp in mission.waypoints
+            ],
+            "status": mission.status,
+            "current_waypoint": mission.current_waypoint,
+            "created_at": mission.created_at,
+            "updated_at": mission.updated_at
+        }
+
+    async def create_mission(self, db: AsyncSession, mission_data: MissionCreate) -> dict:
+        """Create new mission in database"""
+        repo = MissionRepository(db)
         
-        mission = MissionResponse(
-            id=mission_id,
+        # Create mission model
+        mission = MissionModel(
             name=mission_data.name,
             description=mission_data.description,
-            waypoints=mission_data.waypoints,
-            status=MissionStatus.PENDING,
-            current_waypoint=None,
-            created_at=timestamp,
-            updated_at=timestamp
+            status=MissionStatus.PENDING.value
         )
         
-        self.missions[mission_id] = mission
-        logger.info(f"✅ Mission created: {mission_id} - {mission.name}")
+        # Create waypoint models
+        waypoints = [
+            WaypointModel(
+                waypoint_id=wp.id,
+                mission_id=mission.id,  # Will be set after mission is added
+                latitude=wp.latitude,
+                longitude=wp.longitude,
+                altitude=wp.altitude,
+                speed=wp.speed,
+                hold_time=wp.hold_time
+            )
+            for wp in mission_data.waypoints
+        ]
         
-        return mission
+        # Save to database
+        saved_mission = await repo.create(mission, waypoints)
+        
+        logger.info(f"✅ Mission created: {saved_mission.id} - {saved_mission.name}")
+        
+        return self._convert_to_schema(saved_mission)
 
-    def get_mission(self, mission_id: str) -> Optional[MissionResponse]:
-        return self.missions.get(mission_id)
+    async def get_mission(self, db: AsyncSession, mission_id: str) -> Optional[dict]:
+        """Get mission by ID"""
+        repo = MissionRepository(db)
+        mission = await repo.get_by_id(mission_id)
+        
+        if mission:
+            return self._convert_to_schema(mission)
+        return None
 
-    def get_all_missions(self) -> List[MissionResponse]:
-        return list(self.missions.values())
+    async def get_all_missions(self, db: AsyncSession) -> List[dict]:
+        """Get all missions"""
+        repo = MissionRepository(db)
+        missions = await repo.get_all()
+        
+        return [self._convert_to_schema(m) for m in missions]
 
-    def delete_mission(self, mission_id: str) -> bool:
-        if mission_id in self.missions:
-            del self.missions[mission_id]
-            logger.info(f"️ Mission deleted: {mission_id}")
-            return True
-        return False
+    async def delete_mission(self, db: AsyncSession, mission_id: str) -> bool:
+        """Delete mission"""
+        repo = MissionRepository(db)
+        return await repo.delete(mission_id)
 
-    async def start_mission(self, mission_id: str) -> bool:
-        mission = self.get_mission(mission_id)
+    async def start_mission(self, db: AsyncSession, mission_id: str) -> bool:
+        """Start mission execution"""
+        repo = MissionRepository(db)
+        mission = await repo.get_by_id(mission_id)
+        
         if not mission:
             return False
         
-        if mission.status != MissionStatus.PENDING:
+        if mission.status != MissionStatus.PENDING.value:
             logger.warning(f"Mission {mission_id} cannot be started (status: {mission.status})")
             return False
         
+        # Update status to RUNNING
+        await repo.update_status(mission_id, MissionStatus.RUNNING)
+        
         self.current_mission_id = mission_id
-        mission.status = MissionStatus.RUNNING
-        mission.updated_at = time.time()
         self.is_executing = True
         
         logger.info(f"🚀 Starting mission: {mission_id}")
         
         # Start mission executor in background
-        asyncio.create_task(self._execute_mission(mission_id))
+        asyncio.create_task(self._execute_mission(db, mission_id))
         
         return True
 
-    async def abort_mission(self, mission_id: str) -> bool:
-        mission = self.get_mission(mission_id)
-        if not mission or mission.status != MissionStatus.RUNNING:
+    async def abort_mission(self, db: AsyncSession, mission_id: str) -> bool:
+        """Abort running mission"""
+        repo = MissionRepository(db)
+        mission = await repo.get_by_id(mission_id)
+        
+        if not mission or mission.status != MissionStatus.RUNNING.value:
             return False
         
-        mission.status = MissionStatus.ABORTED
-        mission.updated_at = time.time()
+        # Update status
+        await repo.update_status(mission_id, MissionStatus.ABORTED)
+        
         self.is_executing = False
         self.current_mission_id = None
         
-        logger.info(f"🛑 Mission aborted: {mission_id}")
+        logger.info(f" Mission aborted: {mission_id}")
         
         # Broadcast status
         await websocket_service.broadcast({
@@ -93,44 +145,48 @@ class MissionService:
         
         return True
 
-    async def _execute_mission(self, mission_id: str):
+    async def _execute_mission(self, db: AsyncSession, mission_id: str):
         """
         Mission executor - simulasi eksekusi waypoint
-        Di Sprint 5, ini akan diganti dengan MAVLink commands
         """
-        mission = self.get_mission(mission_id)
+        repo = MissionRepository(db)
+        mission = await repo.get_by_id(mission_id)
+        
         if not mission:
             return
         
         try:
-            for i, waypoint in enumerate(mission.waypoints):
+            for i, wp in enumerate(mission.waypoints):
                 if not self.is_executing:
                     break
                 
-                mission.current_waypoint = waypoint.id
-                mission.updated_at = time.time()
+                # Update current waypoint
+                await repo.update_status(
+                    mission_id, 
+                    MissionStatus.RUNNING,
+                    current_waypoint=wp.waypoint_id
+                )
                 
-                logger.info(f"📍 Executing waypoint {i+1}/{len(mission.waypoints)}: {waypoint.latitude}, {waypoint.longitude}")
+                logger.info(f"📍 Executing waypoint {i+1}/{len(mission.waypoints)}: {wp.latitude}, {wp.longitude}")
                 
                 # Broadcast waypoint update
                 await websocket_service.broadcast({
                     "type": "waypoint_update",
                     "data": {
                         "mission_id": mission_id,
-                        "current_waypoint": waypoint.id,
+                        "current_waypoint": wp.waypoint_id,
                         "total_waypoints": len(mission.waypoints),
-                        "latitude": waypoint.latitude,
-                        "longitude": waypoint.longitude,
-                        "altitude": waypoint.altitude
+                        "latitude": wp.latitude,
+                        "longitude": wp.longitude,
+                        "altitude": wp.altitude
                     }
                 })
                 
-                # Simulasi waktu tempuh ke waypoint
-                await asyncio.sleep(3)  # 3 detik per waypoint (simulasi)
+                # Simulasi waktu tempuh
+                await asyncio.sleep(3)
             
             if self.is_executing:
-                mission.status = MissionStatus.COMPLETED
-                mission.updated_at = time.time()
+                await repo.update_status(mission_id, MissionStatus.COMPLETED)
                 logger.info(f"✅ Mission completed: {mission_id}")
                 
                 await websocket_service.broadcast({
@@ -144,8 +200,7 @@ class MissionService:
         
         except Exception as e:
             logger.error(f"❌ Mission failed: {e}")
-            mission.status = MissionStatus.FAILED
-            mission.updated_at = time.time()
+            await repo.update_status(mission_id, MissionStatus.FAILED)
         
         finally:
             self.is_executing = False
