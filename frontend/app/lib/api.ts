@@ -5,6 +5,9 @@ const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://locahost:8000/api/v1/ws';
 
 export const api = axios.create({
     baseURL: API_URL,
+    headers: {
+        'Content-Type': 'apilication/json',
+    },
     timeout: 10000,
 });
 

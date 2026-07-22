@@ -1,31 +1,32 @@
-"use client"
+"use client";
 // frontend/src/app/page.tsx
-import dynamic from 'next/dynamic';
-import Telemetry from './components/Telemetry';
-import MissionForm from './components/missionForm';
+import dynamic from "next/dynamic";
+import Telemetry from "./components/Telemetry";
+import MissionForm from "./components/missionForm";
 
-const DroneMap = dynamic(() => import('./components/Map'), {
+const DroneMap = dynamic(() => import("./components/Map"), {
   ssr: false,
-  loading: () => <p>sek cak loading...</p>
-})
+  loading: () => <p>sek cak loading...</p>,
+});
 
 export default function Home() {
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">VTOL Drone Dashboard</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <Telemetry />
+    <main className="w-full h-screen ">
+      <div className="w-full h-[10%] text-white font-bold flex justify-center items-center bg-black">
+        <h1>SKY_WAY</h1>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="md:col-span-2">
-          <DroneMap />
+
+      <div className="flex w-full h-[90%]">
+        <div className="w-[30%] flex flex-col h-full">
+          <section className="bg-red-400 h-1/2">naik turun</section>
+          <section className="bg-sky-400 h-1/2">
+          <Telemetry/>
+          </section>
         </div>
-        <div>
-          <MissionForm />
+        <div className="w-[70%] bg-green-400">
+          <DroneMap/>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

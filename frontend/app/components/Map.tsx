@@ -6,6 +6,13 @@ import L from 'leaflet'; // Tambahkan ini untuk custom icon
 import { useState, useEffect } from 'react';
 import { ws } from '../lib/api';
 
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
 // Definisikan tipe data untuk Waypoint agar lebih rapi
 interface Waypoint {
   latitude: number;
@@ -45,7 +52,7 @@ export default function DroneMap() {
   }, []);
 
   return (
-    <div className="h-96 rounded-lg overflow-hidden border border-gray-300">
+    <div className="h-full rounded-lg overflow-hidden border border-gray-300">
       <MapContainer 
         center={position} 
         zoom={15} 

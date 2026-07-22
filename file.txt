@@ -1,0 +1,47 @@
+# 1. Masuk ke folder frontend
+cd frontend
+
+# 2. HAPUS TOTAL semua file konfigurasi lama dan cache yang mungkin masih menyimpan '@tailwindcss/postcss'
+Remove-Item -Force postcss.config.js, postcss.config.mjs, tailwind.config.js, tailwind.config.ts -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force .next, node_modules, package-lock.json -ErrorAction SilentlyContinue
+
+# 3. Buat file postcss.config.js yang BARU dan BENAR (Tailwind v3)
+@"
+module.exports = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+"@ | Out-File -FilePath postcss.config.js -Encoding utf8
+
+# 4. Buat file tailwind.config.js yang BARU dan BENAR
+@"
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+"@ | Out-File -FilePath tailwind.config.js -Encoding utf8
+
+# 5. Install versi Tailwind v3 yang spesifik dan stabil
+npm install -D tailwindcss@3.4.1 postcss@8.4.35 autoprefixer@10.4.18
+
+# 6. Pastikan isi globals.css benar (hapus isi lama, tulis 3 baris ini)
+@"
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+"@ | Out-File -FilePath app/globals.css -Encoding utf8
+
+# 7. Kembali ke root dan cek apakah ada file postcss config yang SALAH di folder root (vtol-backend)
+cd ..
+Remove-Item -Force postcss.config.js, postcss.config.mjs -ErrorAction SilentlyContinue
+
+Write-Host "✅ Pembersihan dan instalasi ulang selesai! Silakan jalankan 'cd frontend' lalu 'npm run dev'" -ForegroundColor Green

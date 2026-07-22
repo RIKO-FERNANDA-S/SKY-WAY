@@ -1,11 +1,12 @@
 # app/api/routes/mission.py
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.response import APIResponse
 from app.schemas.mission import MissionCreate
 from app.services.mission_service import mission_service
 from app.db.config import get_db
 from typing import List
+from app.constants.flight_mode import FlightMode
 
 router = APIRouter(prefix="/mission", tags=["Mission"])
 
@@ -105,4 +106,19 @@ async def abort_mission(mission_id: str, db: AsyncSession = Depends(get_db)):
         success=True,
         message="Mission aborted successfully",
         data={"mission_id": mission_id}
+    )
+
+
+@router.post("/mode", response_model=APIResponse)
+async def change_flight_mode(mode: FlightMode):
+    """
+    Software override untuk mengganti flight mode. 
+    Nantinya di sprint 6, ini akan mengirim MAVLink command SET_MODE ke Pixhwak.
+    """
+    logger.info(f"🕹️ Software override: Requesting mode change to {mode.value}")
+
+    return APIResponse(
+        success=True,
+        message=f"Mode change Request: {mode.value}",
+        data={"request_mode": mode.value}
     )

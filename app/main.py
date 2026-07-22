@@ -1,6 +1,7 @@
 # app/main.py
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
 
@@ -13,6 +14,8 @@ from app.core.exception import (
 )
 from app.api.router import api_router
 from app.core.lifespan import lifespan
+from fastapi.middleware.cors import CORSMiddleware
+
 
 # Setup Logging
 setup_logging()
@@ -22,6 +25,14 @@ app = FastAPI(
     version=settings.app_version,
     debug=settings.debug,
     lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins={"http://localhost:3000", "localhost://127.0.0.1:3000"},
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Register Routers
