@@ -7,6 +7,9 @@ from app.services.mission_service import mission_service
 from app.db.config import get_db
 from typing import List
 from app.constants.flight_mode import FlightMode
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/mission", tags=["Mission"])
 
